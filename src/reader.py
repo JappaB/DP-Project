@@ -38,13 +38,11 @@ class Reader(object):
                 
                 tag_idx = [tag_vocabulary[tag] for tag in tags]
                 arcs_indices = [x.split('\t')[6] for x in line.split('\n') if x[0] not in ['#','r\n','\n']]
-                print(len(arcs_indices), len(tag_idx))
+
                 arcs = [(vocabulary[words[i]], int(j)) # j might be off 
                         for i, j in enumerate(arcs_indices, start=0) if j != '_'] 
 
-                # print()
                 idx, target = zip(*arcs)
-                # print(len(idx), len(tag_idx))
                 X.append({'word_idx': idx, 'tag_idx': tag_idx})
                 T.append(target)
                 # should check why j sometimes is '_'

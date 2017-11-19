@@ -35,7 +35,6 @@ class LSTM(nn.Module):
         tag_embeds = self.tag_embeddings(tags)
         embeds = torch.cat((word_embeds, tag_embeds))
         size = len(sentence) + len(tags)
-        print(len(sentence), len(tags))
         lstm_out, self.hidden = self.lstm(embeds.view(size , 1, -1), self.hidden)
         dep_space = self.hidden2dep(lstm_out.view(size, -1))
         H_dep = F.relu(self.hidden_to_relu_dep(lstm_out.view(size, -1)))

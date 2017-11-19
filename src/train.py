@@ -43,13 +43,12 @@ def evaluate(X, T):
 r = Reader()
 vocabulary = r.get_vocabulary('../Data/en-ud-train.conllu')
 tag_vocabulary = r.get_tag_vocabulary('../Data/en-ud-train.conllu')
-print(tag_vocabulary)
+
 X, T = r.aggregate_training_data('../Data/en-ud-train.conllu', vocabulary, tag_vocabulary)
-# print(X)
+
 model = LSTM(10, 10, len(vocabulary), len(tag_vocabulary), 10)  # bad performance :()
 loss_function = nn.NLLLoss()
 optimizer = optim.SGD(model.parameters(), lr=0.1)
 
 for _ in range(100):
     train(model, X, T)
-# print(model.evaluate(X, T))
