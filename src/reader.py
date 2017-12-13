@@ -16,6 +16,19 @@ def uri_validator(x):
 
 class Reader(object):
     
+    def get_label_vocabulary(self, file_path):
+        with open(file_path) as f:
+            label_to_index = {}
+            for line in [line for line in f.read().split('\n\n')]:
+                if line == "":
+                    continue
+                labels = [x.split('\t')[7].lower() for x in line.split('\n') if x[0] not in ['#','r\n','\n']]
+                # add words to vocabulary, possibly do pre-proccesing here
+                for label in labels:
+                    if label not in label_to_index:
+                        label_to_index[label] = len(label_to_index)
+        return label_to_index
+    
     def count_words(self, file_path):
         cnt = Counter()
         with open(file_path) as f:
@@ -52,7 +65,7 @@ class Reader(object):
                         tag_to_index[tag] = len(tag_to_index)
         return tag_to_index
 
-    def aggregate_training_data(self, file_path, cnt, vocabulary, tag_vocabulary):
+    def aggregate_training_data(self, file_path, cnt, vocabulary, tag_vocabulary, label_vocabulary):
         with open(file_path) as f:
             X = []
             T = []
@@ -60,7 +73,7 @@ class Reader(object):
                 if line == "":
                     continue
 
-                words = [x.split('\t')[2] for x in line.split('\n') if x[0] not in ['#','r\n','\n']]
+                words = ['root'] + [x.split('\t')[2] for x in line.split('\n') if x[0] not in ['#','r\n','\n']]
 
                 # to lowercase
                 words = [w.lower() for w in words]
@@ -75,11 +88,17 @@ class Reader(object):
                 words = [w if cnt[w] != 1 else '<unk>' for w in words]
                 
                 tags = [x.split('\t')[4] for x in line.split('\n') if x[0] not in ['#','r\n','\n']]
-                
+
+                labels = [x.split('\t')[7].lower() for x in line.split('\n') if x[0] not in ['#','r\n','\n']]
+
                 # possibly should add root.
-                
                 tag_idx = [tag_vocabulary[tag] for tag in tags]
+
+                label_idx = [label_vocabulary[label] for label in labels]
+
                 arcs_indices = [x.split('\t')[6] for x in line.split('\n') if x[0] not in ['#','r\n','\n']]
+
+                print(arcs_indices)
 
                 arcs = [(vocabulary[words[i]], int(j)) # j might be off 
                         for i, j in enumerate(arcs_indices, start=0) if j != '_'] 
@@ -90,7 +109,7 @@ class Reader(object):
                     # weird format, no arc
                     continue
                 X.append({'word_idx': idx, 'tag_idx': tag_idx})
-                T.append(target)
+                T.append({'arc_target': target, 'label_target': label_idx})
                 # should check why j sometimes is '_'
         return X, T
 
@@ -99,7 +118,8 @@ r = Reader()
 counted_words = r.count_words('../Data/en-ud-train.conllu')
 vocabulary = r.get_vocabulary('../Data/en-ud-train.conllu')
 tag_vocabulary = r.get_tag_vocabulary('../Data/en-ud-train.conllu')
-X, T = r.aggregate_training_data('../Data/en-ud-train.conllu', 
-                                 counted_words, vocabulary, tag_vocabulary)
 
-# print(X, T)
+label_vocabulary = r.get_label_vocabulary('../Data/en-ud-train.conllu')
+X, T = r.aggregate_training_data('../Data/en-ud-train.conllu', 
+                                 counted_words, vocabulary, tag_vocabulary, 
+                                 label_vocabulary)
