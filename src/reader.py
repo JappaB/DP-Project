@@ -98,8 +98,6 @@ class Reader(object):
 
                 arcs_indices = [x.split('\t')[6] for x in line.split('\n') if x[0] not in ['#','r\n','\n']]
 
-                print(arcs_indices)
-
                 arcs = [(vocabulary[words[i]], int(j)) # j might be off 
                         for i, j in enumerate(arcs_indices, start=0) if j != '_'] 
 

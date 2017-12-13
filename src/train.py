@@ -6,13 +6,17 @@ import torch.nn as nn
 import torch.optim as optim
 from random import shuffle
 
-def train(model, X_train, T_train, X_test, T_test):
+
+def train(X_train, T_train, X_test, T_test, model, loss_function, 
+          optimizer, scheduler):
     train_loss = 0.0
     train_arc_acc = 0
     train_label_acc = 0
     i = 0
     skipped = 0
     for x, t in zip(X_train, T_train):
+        if i > 100:
+            continue
 
         if (len(t['arc_target']) in t['arc_target'] or len(t['label_target'])+1 
             in t['arc_target'] or len(t['label_target']) in t['label_target']):
@@ -40,6 +44,8 @@ def train(model, X_train, T_train, X_test, T_test):
     test_label_acc = 0
     j = 0
     for x, t in zip(X_test, T_test):
+        if j> 50:
+            continue
         if (len(t['arc_target']) in t['arc_target'] or len(t['label_target'])+1 
             in t['arc_target'] or len(t['label_target']) in t['label_target']):
             skipped += 1
@@ -50,12 +56,9 @@ def train(model, X_train, T_train, X_test, T_test):
         arc_tensor = autograd.Variable(torch.LongTensor(t['arc_target']))
         label_tensor = autograd.Variable(torch.LongTensor(t['label_target']))
 
-        arc_scores, label_scores = model(word_tensor, tag_tensor, t['arc_target'])
+        arc_scores, label_scores = model(word_tensor, tag_tensor, best_arcs=None)
         test_arc_acc += (arc_scores.max(dim=1)[1] == arc_tensor).sum().data[0] / len(arc_tensor)
         test_label_acc += (label_scores.max(dim=0)[1] == label_tensor).sum().data[0] / len(label_tensor)
-        # loss = loss_function(arc_scores, arc_tensor) # + loss_function(label_scores.transpose(0, 1), label_tensor)
-
-        # test_loss += loss.data[0]
         j += 1
     print('train loss: ', train_loss / i,  # 'test_loss :', test_loss / j,
           'train arc acc:', train_arc_acc / i, 'train label acc: ', train_label_acc / i,
@@ -73,27 +76,28 @@ def split(X, T):
     T_test = [T[i] for i in indices[:split_index]]
     return X_train, X_test, T_train, T_test
 
-r = Reader()
-counted_words = r.count_words('../Data/en-ud-train.conllu')
-vocabulary = r.get_vocabulary('../Data/en-ud-train.conllu')
-tag_vocabulary = r.get_tag_vocabulary('../Data/en-ud-train.conllu')
+def full_training(epochs, filename):
+    r = Reader()
+    vocabulary = r.get_vocabulary(filename)
+    tag_vocabulary = r.get_tag_vocabulary(filename)
+    label_vocabulary = r.get_label_vocabulary(filename)
+    model = DependencyParser(100, 100, len(vocabulary), len(tag_vocabulary), 10, len(label_vocabulary), 0.3)  # bad performance :()
+    loss_function = nn.CrossEntropyLoss()
+    optimizer = optim.Adam(model.parameters(), lr=0.0002, betas=[0.9, 0.9])
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', verbose=True, patience=3)
+    counted_words = r.count_words(filename)
+    X, T = r.aggregate_training_data(filename, 
+                                     counted_words, vocabulary, tag_vocabulary, 
+                                     label_vocabulary)
 
-label_vocabulary = r.get_label_vocabulary('../Data/en-ud-train.conllu')
-X, T = r.aggregate_training_data('../Data/en-ud-train.conllu', 
-                                 counted_words, vocabulary, tag_vocabulary, 
-                                 label_vocabulary)
+   
+    X_train, X_test, T_train, T_test = split(X, T)
+    
+    for i in range(epochs):
+        print('iteration: {0}'.format(i+1))
+        test_loss = train(X_train, T_train, X_test, T_test, model, loss_function, optimizer, scheduler)
 
-model = DependencyParser(100, 100, len(vocabulary), len(tag_vocabulary), 10, len(label_vocabulary), 0.3)  # bad performance :()
-loss_function = nn.CrossEntropyLoss()
-optimizer = optim.Adam(model.parameters(), lr=0.0002, betas=[0.9, 0.9])
-scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', verbose=True, patience=3)
-X_train, X_test, T_train, T_test = split(X, T)
+    with open('model_{}.model'.format(test_loss), 'wb') as f:
+        torch.save(model, f)
 
-
-print(len(X))
-for i in range(10):
-    print('iteration: {0}'.format(i+1))
-    test_loss = train(model, X_train, T_train, X_test, T_test)
-
-with open('model_{}.model'.format(test_loss), 'wb') as f:
-    torch.save(model, f)
+full_training(10, '../Data/en-ud-train.conllu')

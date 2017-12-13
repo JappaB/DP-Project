@@ -4,6 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from utils import MLP
+from mst import mst
 
 class DependencyParser(nn.Module):
     
@@ -20,11 +21,11 @@ class DependencyParser(nn.Module):
         self.hidden_to_relu_dep = nn.Linear(hidden_dim, hidden_dim)
         self.hidden_to_relu_head = nn.Linear(hidden_dim, hidden_dim)
 
-        self.arc_dep = MLP(hidden_dim*2, hidden_dim, 1,  0.2)
-        self.arc_head = MLP(hidden_dim*2, hidden_dim, 1, 0.2)
+        self.arc_dep = MLP(hidden_dim*2, hidden_dim, 1,  dropout)
+        self.arc_head = MLP(hidden_dim*2, hidden_dim, 1, dropout)
 
-        self.label_dep = MLP(hidden_dim*2, hidden_dim, 1,  0.2)
-        self.label_head = MLP(hidden_dim*2, hidden_dim, 1,  0.2)
+        self.label_dep = MLP(hidden_dim*2, hidden_dim, 1,  dropout)
+        self.label_head = MLP(hidden_dim*2, hidden_dim, 1,  dropout)
 
         # add 1 for bias
         self.bi_affine_arcs = nn.Linear(hidden_dim+1, hidden_dim, bias=False)
@@ -59,10 +60,12 @@ class DependencyParser(nn.Module):
 
         # best arcs should be provided during training.
         if best_arcs == None:
-            best_arcs = arc_scores.max(dim=1)[1] 
+            if len(arc_scores.data.numpy()) == 1:
+                best_arcs = [0]
+            else:
+                best_arcs = mst(arc_scores.data.numpy())
+            
         label_scores = label_head @ self.bi_affine_labels_weights @ label_dep.transpose(0, 1)
-        #print(label_head @ self.bi_affine_labels_weights)
-
         label_scores = F.log_softmax(label_scores[:, best_arcs, [i for i in range(len(best_arcs))]], dim=0)
 
         return arc_scores, label_scores
