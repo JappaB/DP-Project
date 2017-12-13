@@ -15,9 +15,6 @@ def train(X_train, T_train, X_test, T_test, model, loss_function,
     i = 0
     skipped = 0
     for x, t in zip(X_train, T_train):
-        if i > 100:
-            continue
-
         if (len(t['arc_target']) in t['arc_target'] or len(t['label_target'])+1 
             in t['arc_target'] or len(t['label_target']) in t['label_target']):
             skipped += 1
@@ -44,8 +41,6 @@ def train(X_train, T_train, X_test, T_test, model, loss_function,
     test_label_acc = 0
     j = 0
     for x, t in zip(X_test, T_test):
-        if j> 50:
-            continue
         if (len(t['arc_target']) in t['arc_target'] or len(t['label_target'])+1 
             in t['arc_target'] or len(t['label_target']) in t['label_target']):
             skipped += 1
