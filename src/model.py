@@ -3,7 +3,6 @@ import torch.autograd as autograd
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from utils import TimeDistributed
 from utils import MLP
 
 class DependencyParser(nn.Module):
